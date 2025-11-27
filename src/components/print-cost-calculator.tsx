@@ -8,26 +8,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Box, Clock, Zap, User, Printer, Paintbrush, TrendingUp, Wand2, Lightbulb, Save, RefreshCw } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
-import { generateEstimatesFromPrompt } from '@/ai/flows/generate-estimates-from-prompt';
-import { analyzeAndSuggestOptimizations } from '@/ai/flows/analyze-and-suggest-optimizations';
+import { Box, Clock, Zap, User, Printer, Paintbrush, TrendingUp, Save } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const initialCosts: CostInput = {
-  materialCost: 10,
+  materialCost: 10000,
   printingTimeHours: 5,
-  electricityCost: 0.15,
-  laborCost: 20,
-  printerDepreciation: 0.5,
-  postProcessingCost: 5,
+  electricityCost: 150,
+  laborCost: 2000,
+  printerDepreciation: 500,
+  postProcessingCost: 5000,
   profitMargin: 20,
-  currency: 'USD',
+  currency: 'ARS',
 };
 
 const currencies = [
+  { value: 'ARS', label: 'ARS - Peso argentino', symbol: '$' },
   { value: 'USD', label: 'USD - Dólar estadounidense', symbol: '$' },
   { value: 'EUR', label: 'EUR - Euro', symbol: '€' },
   { value: 'GBP', label: 'GBP - Libra esterlina', symbol: '£' },
@@ -37,10 +34,6 @@ const currencies = [
 export function PrintCostCalculator() {
   const { toast } = useToast();
   const [costs, setCosts] = useState<CostInput>(initialCosts);
-  const [prompt, setPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizationSuggestions, setOptimizationSuggestions] = useState('');
   const [isRecentUpdate, setIsRecentUpdate] = useState(false);
 
   const handleInputChange = (field: keyof CostInput, value: string) => {
@@ -75,54 +68,6 @@ export function PrintCostCalculator() {
     const timer = setTimeout(() => setIsRecentUpdate(false), 500);
     return () => clearTimeout(timer);
   }, [calculatedCosts]);
-
-  const handleGenerateEstimates = async () => {
-    if (!prompt.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Por favor, introduzca una descripción para generar la estimación.",
-      });
-      return;
-    }
-    setIsGenerating(true);
-    try {
-      const estimates = await generateEstimatesFromPrompt({ prompt });
-      setCosts(estimates);
-      toast({
-        title: "Éxito",
-        description: "Estimaciones generadas con IA y aplicadas.",
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Error de IA",
-        description: "No se pudieron generar las estimaciones.",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleSuggestOptimizations = async () => {
-    setIsOptimizing(true);
-    setOptimizationSuggestions('');
-    try {
-      const costEstimationDetails = JSON.stringify(costs, null, 2);
-      const result = await analyzeAndSuggestOptimizations({ costEstimationDetails });
-      setOptimizationSuggestions(result.optimizationSuggestions);
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Error de IA",
-        description: "No se pudieron generar las sugerencias de optimización.",
-      });
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
   
   const handleSave = () => {
     // This is a mock save function. In a real app, this would save to Firestore.
@@ -135,7 +80,7 @@ export function PrintCostCalculator() {
   const currencySymbol = currencies.find(c => c.value === costs.currency)?.symbol || '$';
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: costs.currency }).format(value);
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: costs.currency }).format(value);
   };
 
   return (
@@ -146,22 +91,6 @@ export function PrintCostCalculator() {
           <CardDescription>Ajuste los detalles para calcular el costo de impresión.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4 p-4 border rounded-lg bg-secondary/30">
-            <Label htmlFor="ai-prompt" className="font-semibold text-primary">Generar con IA</Label>
-            <Textarea
-              id="ai-prompt"
-              placeholder="Ej: Un pequeño engranaje de repuesto para una bicicleta, impreso en PLA, con un 20% de relleno."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-            <Button onClick={handleGenerateEstimates} disabled={isGenerating}>
-              {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-              Generar Estimación
-            </Button>
-          </div>
-          
-          <Separator />
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField icon={Box} label="Costo del Material" value={costs.materialCost} onChange={e => handleInputChange('materialCost', e.target.value)} currencySymbol={currencySymbol} />
             <InputField icon={Clock} label="Tiempo de Impresión" value={costs.printingTimeHours} onChange={e => handleInputChange('printingTimeHours', e.target.value)} unit="horas" />
@@ -217,31 +146,6 @@ export function PrintCostCalculator() {
               <span>{formatCurrency(calculatedCosts.sellingPrice)}</span>
             </div>
           </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Lightbulb className="text-accent" /> Optimización con IA</CardTitle>
-                <CardDescription>Obtenga sugerencias para reducir costos y mejorar la rentabilidad.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button onClick={handleSuggestOptimizations} disabled={isOptimizing} className="w-full" variant="outline">
-                    {isOptimizing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-2 h-4 w-4" />}
-                    Sugerir Optimizaciones
-                </Button>
-                {isOptimizing && (
-                    <div className="space-y-3 mt-4">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                    </div>
-                )}
-                {optimizationSuggestions && (
-                    <div className="mt-4 text-sm p-4 bg-secondary/30 rounded-lg whitespace-pre-wrap font-mono">
-                        {optimizationSuggestions}
-                    </div>
-                )}
-            </CardContent>
         </Card>
       </div>
     </div>
