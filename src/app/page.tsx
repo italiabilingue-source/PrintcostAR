@@ -9,7 +9,7 @@ export default function Home() {
             PrintCost AR
           </h1>
           <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-            Calcule con precisión el costo de sus impresiones 3D. Introduzca los detalles de su proyecto para obtener una estimación instantánea.
+            Calcule con precisión el costo de sus impresiones 3D. Introduzca los detalles de su proyecto para obtener una estimación de costos profesional y detallada.
           </p>
         </header>
         <PrintCostCalculator />

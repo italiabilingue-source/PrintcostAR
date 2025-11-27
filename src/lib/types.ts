@@ -1,18 +1,39 @@
 export interface CostInput {
-  materialCost: number;
+  pieceName: string;
+  clientName: string;
+  notes: string;
+
+  filamentKiloCost: number;
+  filamentGrams: number;
+  
   printingTimeHours: number;
-  electricityCost: number;
-  laborCost: number;
+  
+  printerConsumptionWatts: number;
+  kwhCost: number;
+  
+  laborHours: number;
+  laborCostPerHour: number;
+  
   printerDepreciation: number;
   postProcessingCost: number;
+
+  failureRiskPercentage: number;
+  urgencySurchargePercentage: number;
+  
   profitMargin: number;
   currency: string;
 }
 
 export interface CalculatedCosts {
+  materialCost: number;
+  electricityCost: number;
+  laborCost: number;
+  printerWearCost: number;
+  postProcessingCost: number;
+  subtotal: number;
+  failureRiskCost: number;
   productionCost: number;
-  sellingPrice: number;
   profit: number;
-  totalMaterialCost: number;
-  totalTimeBasedCost: number;
+  urgencyCost: number;
+  sellingPrice: number;
 }
