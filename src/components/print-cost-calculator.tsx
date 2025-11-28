@@ -9,12 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Box, Clock, Zap, User, Printer, Paintbrush, TrendingUp, Save, Trash2, Repeat, AlertTriangle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Box, Clock, Zap, User, Printer, Paintbrush, TrendingUp, Save, Trash2, Repeat, AlertTriangle, FileText, ChevronDown, ChevronUp, History, Download, Copy } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 
 const initialCosts: CostInput = {
+  id: '',
   pieceName: '',
   clientName: '',
   notes: '',
@@ -38,6 +39,7 @@ const initialCosts: CostInput = {
   
   profitMargin: 20,
   currency: 'ARS',
+  savedAt: new Date(),
 };
 
 const currencies = [
@@ -49,18 +51,28 @@ const currencies = [
 export function PrintCostCalculator() {
   const { toast } = useToast();
   const [costs, setCosts] = useState<CostInput>(initialCosts);
+  const [savedQuotes, setSavedQuotes] = useState<CostInput[]>([]);
   const [isRecentUpdate, setIsRecentUpdate] = useState(false);
   const [isProjectInfoCollapsed, setProjectInfoCollapsed] = useState(false);
-
-
-  const handleInputChange = (field: keyof CostInput, value: string) => {
-    const numericValue = value === '' ? 0 : parseFloat(value);
-    // Allow updating non-numeric fields as well
-    if (typeof initialCosts[field] === 'string') {
-        setCosts(prev => ({ ...prev, [field]: value }));
-    } else if (!isNaN(numericValue)) {
-      setCosts(prev => ({ ...prev, [field]: numericValue }));
+  
+  useEffect(() => {
+    try {
+      const storedQuotes = localStorage.getItem('savedQuotes');
+      if (storedQuotes) {
+        setSavedQuotes(JSON.parse(storedQuotes));
+      }
+    } catch (error) {
+      console.error("Error loading quotes from localStorage", error);
+      toast({
+          variant: "destructive",
+          title: "Error al cargar presupuestos",
+          description: "No se pudieron cargar los presupuestos guardados.",
+      });
     }
+  }, [toast]);
+
+  const handleInputChange = (field: keyof CostInput, value: string | number) => {
+    setCosts(prev => ({ ...prev, [field]: value }));
   };
 
   const handleCurrencyChange = (value: string) => {
@@ -109,9 +121,15 @@ export function PrintCostCalculator() {
   }, [calculatedCosts]);
   
   const handleSave = () => {
+    const newQuote = { ...costs, id: `quote_${Date.now()}`, savedAt: new Date() };
+    
+    const updatedQuotes = [...savedQuotes, newQuote];
+    setSavedQuotes(updatedQuotes);
+    localStorage.setItem('savedQuotes', JSON.stringify(updatedQuotes));
+
     toast({
-        title: "Presupuesto Guardado (Simulación)",
-        description: `El presupuesto para "${costs.pieceName || 'Pieza sin nombre'}" ha sido guardado.`,
+        title: "Presupuesto Guardado",
+        description: `El presupuesto para "${newQuote.pieceName || 'Pieza sin nombre'}" ha sido guardado localmente.`,
     });
   }
 
@@ -122,12 +140,45 @@ export function PrintCostCalculator() {
         description: "Todos los valores han vuelto a su estado inicial.",
     });
   }
+  
+  const loadQuote = (quoteId: string) => {
+    const quoteToLoad = savedQuotes.find(q => q.id === quoteId);
+    if (quoteToLoad) {
+        setCosts(quoteToLoad);
+        toast({
+            title: "Presupuesto Cargado",
+            description: `Se han cargado los datos para "${quoteToLoad.pieceName || 'Pieza sin nombre'}".`,
+        });
+    }
+  }
+
+  const deleteQuote = (quoteId: string) => {
+    const updatedQuotes = savedQuotes.filter(q => q.id !== quoteId);
+    setSavedQuotes(updatedQuotes);
+    localStorage.setItem('savedQuotes', JSON.stringify(updatedQuotes));
+    toast({
+        variant: "destructive",
+        title: "Presupuesto Eliminado",
+        description: "El presupuesto seleccionado ha sido eliminado.",
+    });
+  }
 
   const currencySymbol = currencies.find(c => c.value === costs.currency)?.symbol || '$';
 
   const formatCurrency = (value: number) => {
     if (isNaN(value)) return `${currencySymbol} 0,00`;
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: costs.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  };
+  
+  const formatDate = (dateString: string | Date) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -165,44 +216,44 @@ export function PrintCostCalculator() {
             <div className="p-4 border rounded-md">
                 <h4 className="font-semibold mb-4 text-primary flex items-center"><Box className="mr-2 h-5 w-5" />Costo de Material</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Costo Kilo Filamento" value={costs.filamentKiloCost} onChange={e => handleInputChange('filamentKiloCost', e.target.value)} currencySymbol={currencySymbol} />
-                    <InputField label="Gramos de la Pieza" value={costs.filamentGrams} onChange={e => handleInputChange('filamentGrams', e.target.value)} unit="g" />
+                    <InputField label="Costo Kilo Filamento" value={String(costs.filamentKiloCost)} onChange={e => handleInputChange('filamentKiloCost', parseFloat(e.target.value) || 0)} currencySymbol={currencySymbol} />
+                    <InputField label="Gramos de la Pieza" value={String(costs.filamentGrams)} onChange={e => handleInputChange('filamentGrams', parseFloat(e.target.value) || 0)} unit="g" />
                 </div>
             </div>
             
             <div className="p-4 border rounded-md">
                 <h4 className="font-semibold mb-4 text-primary flex items-center"><Zap className="mr-2 h-5 w-5" />Costo de Electricidad</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Consumo Impresora" value={costs.printerConsumptionWatts} onChange={e => handleInputChange('printerConsumptionWatts', e.target.value)} unit="Watts" />
-                    <InputField label="Precio por kWh" value={costs.kwhCost} onChange={e => handleInputChange('kwhCost', e.target.value)} currencySymbol={currencySymbol} />
+                    <InputField label="Consumo Impresora" value={String(costs.printerConsumptionWatts)} onChange={e => handleInputChange('printerConsumptionWatts', parseFloat(e.target.value) || 0)} unit="Watts" />
+                    <InputField label="Precio por kWh" value={String(costs.kwhCost)} onChange={e => handleInputChange('kwhCost', parseFloat(e.target.value) || 0)} currencySymbol={currencySymbol} />
                 </div>
             </div>
 
             <div className="p-4 border rounded-md">
                 <h4 className="font-semibold mb-4 text-primary flex items-center"><User className="mr-2 h-5 w-5" />Costo de Mano de Obra</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Horas de Trabajo" value={costs.laborHours} onChange={e => handleInputChange('laborHours', e.target.value)} unit="hs" />
-                    <InputField label="Costo por Hora" value={costs.laborCostPerHour} onChange={e => handleInputChange('laborCostPerHour', e.target.value)} currencySymbol={currencySymbol} />
+                    <InputField label="Horas de Trabajo" value={String(costs.laborHours)} onChange={e => handleInputChange('laborHours', parseFloat(e.target.value) || 0)} unit="hs" />
+                    <InputField label="Costo por Hora" value={String(costs.laborCostPerHour)} onChange={e => handleInputChange('laborCostPerHour', parseFloat(e.target.value) || 0)} currencySymbol={currencySymbol} />
                 </div>
             </div>
             
             <div className="p-4 border rounded-md">
                  <h4 className="font-semibold mb-4 text-primary flex items-center"><Printer className="mr-2 h-5 w-5" />Costos de Impresión y Generales</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField label="Tiempo de Impresión" value={costs.printingTimeHours} onChange={e => handleInputChange('printingTimeHours', e.target.value)} unit="hs" />
-                    <InputField label="Depreciación" value={costs.printerDepreciation} onChange={e => handleInputChange('printerDepreciation', e.target.value)} currencySymbol={currencySymbol} unit="/hora" />
-                    <InputField icon={Paintbrush} label="Post-procesamiento" value={costs.postProcessingCost} onChange={e => handleInputChange('postProcessingCost', e.target.value)} currencySymbol={currencySymbol} />
+                    <InputField label="Tiempo de Impresión" value={String(costs.printingTimeHours)} onChange={e => handleInputChange('printingTimeHours', parseFloat(e.target.value) || 0)} unit="hs" />
+                    <InputField label="Depreciación" value={String(costs.printerDepreciation)} onChange={e => handleInputChange('printerDepreciation', parseFloat(e.target.value) || 0)} currencySymbol={currencySymbol} unit="/hora" />
+                    <InputField icon={Paintbrush} label="Post-procesamiento" value={String(costs.postProcessingCost)} onChange={e => handleInputChange('postProcessingCost', parseFloat(e.target.value) || 0)} currencySymbol={currencySymbol} />
                 </div>
             </div>
 
              <div className="p-4 border rounded-md">
                  <h4 className="font-semibold mb-4 text-primary flex items-center"><TrendingUp className="mr-2 h-5 w-5" />Márgenes y Riesgos</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField icon={AlertTriangle} label="Riesgo de Fallas" value={costs.failureRiskPercentage} onChange={e => handleInputChange('failureRiskPercentage', e.target.value)} unit="%" />
-                    <InputField label="Margen de Ganancia" value={costs.profitMargin} onChange={e => handleInputChange('profitMargin', e.target.value)} unit="%" />
+                    <InputField icon={AlertTriangle} label="Riesgo de Fallas" value={String(costs.failureRiskPercentage)} onChange={e => handleInputChange('failureRiskPercentage', parseFloat(e.target.value) || 0)} unit="%" />
+                    <InputField label="Margen de Ganancia" value={String(costs.profitMargin)} onChange={e => handleInputChange('profitMargin', parseFloat(e.target.value) || 0)} unit="%" />
                     <div className="space-y-2">
                         <Label htmlFor="urgency">Urgencia</Label>
-                        <Select value={String(costs.urgencySurchargePercentage)} onValueChange={(val) => handleInputChange('urgencySurchargePercentage', val)}>
+                        <Select value={String(costs.urgencySurchargePercentage)} onValueChange={(val) => handleInputChange('urgencySurchargePercentage', parseFloat(val))}>
                             <SelectTrigger id="urgency">
                                 <SelectValue placeholder="Seleccione urgencia" />
                             </SelectTrigger>
@@ -269,10 +320,38 @@ export function PrintCostCalculator() {
             </div>
           </CardContent>
            <CardFooter className="flex justify-end gap-2">
-              <Button variant="secondary" disabled><FileText className="mr-2 h-4 w-4" /> Exportar PDF</Button>
-              <Button variant="secondary" disabled><Repeat className="mr-2 h-4 w-4" /> Duplicar</Button>
+              <Button variant="secondary" disabled><Download className="mr-2 h-4 w-4" /> Exportar PDF</Button>
+              <Button variant="secondary" disabled><Copy className="mr-2 h-4 w-4" /> Duplicar</Button>
           </CardFooter>
         </Card>
+
+        {savedQuotes.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><History className="mr-2 h-5 w-5" /> Presupuestos Guardados</CardTitle>
+              <CardDescription>Estos son los presupuestos guardados en este navegador.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
+              {savedQuotes.slice().reverse().map(quote => (
+                <div key={quote.id} className="border p-3 rounded-md flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold">{quote.pieceName || 'Pieza sin nombre'}</p>
+                    <p className="text-sm text-muted-foreground">{quote.clientName || 'Sin cliente'}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatDate(quote.savedAt)}</p>
+                  </div>
+                  <div className="flex gap-1 items-center">
+                    <Button variant="ghost" size="sm" onClick={() => loadQuote(quote.id!)}>Cargar</Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteQuote(quote.id!)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
@@ -288,10 +367,10 @@ const InputField = ({ icon: Icon, label, value, onChange, unit, currencySymbol, 
       <Input
         id={label}
         type={type}
-        step={type === 'number' ? "0.01" : undefined}
+        step={type === 'number' ? "any" : undefined}
         value={value}
         onChange={onChange}
-        className={cn("w-full", (unit || currencySymbol) ? 'pr-14' : 'pr-4')}
+        className={cn("w-full", (unit || currencySymbol) ? 'pr-16' : 'pr-4')}
         {...props}
       />
       {(unit || currencySymbol) && 

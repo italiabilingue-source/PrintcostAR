@@ -1,4 +1,6 @@
 export interface CostInput {
+  id?: string;
+  savedAt?: Date;
   pieceName: string;
   clientName: string;
   notes: string;
