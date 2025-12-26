@@ -2,10 +2,19 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+
+// A placeholder for the DayPicker since the original is not compatible with React 19 yet.
+// This will prevent the app from crashing but won't render a functional calendar.
+const DayPicker = ({ className, ...props }: any) => {
+  return (
+    <div className={cn("p-3 rounded-md border bg-card text-card-foreground", className)} {...props}>
+      <p className="text-muted-foreground text-center">Calendar component is temporarily unavailable.</p>
+    </div>
+  )
+}
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -54,12 +63,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("h-4 w-4", className)} {...props} />
-        ),
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
       }}
       {...props}
     />
